@@ -1,0 +1,44 @@
+version: '3.4'
+
+services:
+  broker:
+    image: file-broker-app-py
+    build:
+      context: ./broker
+      dockerfile: ./Dockerfile.file-broker-py
+    environment:
+      - SFTP_HOST=sftp-srv
+      - SFTP_PORT=22
+      - SFTP_USR=admin
+      - SFTP_PWD=devpwd
+      - SOURCE_PATH=/upload/raw
+      - RABBIT_SRV=rabbit-queue
+      - TARGET_QUEUE=new_files
+      - PUBLISHING_LIMIT=200000
+      - FREQUENCY_SEC=300
+    # restart: unless-stopped
+    networks:
+      - ddec-pipeline-network
+  
+  parser:
+    image: ddec-parser-mc-app-py
+    build:
+      context: ./parser
+      dockerfile: ./Dockerfile.test
+    environment:
+      - SFTP_HOST=sftp-srv
+      - SFTP_PORT=22
+      - SFTP_USR=admin
+      - SFTP_PWD=devpwd
+      - RABBIT_SRV=rabbit-queue
+      - DEST_PATH=/upload/DM01/mc 
+      - SOURCE_PATH=/upload/converted
+      - SOURCE_QUEUE=unboxed_files
+      - TARGET_QUEUE=parsed_files
+    # restart: unless-stopped
+    networks:
+      - ddec-pipeline-network
+
+networks:
+  ddec-pipeline-network:
+    external: true
