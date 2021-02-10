@@ -11,6 +11,31 @@ class queue_CONN:
     def __init__(self):
         self.ResultAr = []
         return
+    def create_Connection(self):
+        connection =  pika.BlockingConnection(pika.ConnectionParameters(self.rbt_srv))
+        return connection
+    def create_channel(self, connObj):
+        ch = connObj.channel()
+        return ch
+    def create_namespace_queues(self, chObj: str) -> None:
+        self.success_queue = 'pass_' + chObj
+        self.fail_queue = 'fail_' + chObj
+        self.progress_queue = 'status_' + chObj
+        ns_channel.queue_declare(queue=self.success_queue, durable=True)
+        ns_channel.queue_declare(queue=self.fail_queue, durable=True)
+        ns_channel.queue_declare(queue=self.progress_queue, durable=True)
+    def create_Queue(self) -> None:
+        # Create connections
+        self.in_conn = self.set_Connection()
+        self.out_conn = self.set_Connection()
+        # Create channels
+        in_channel = self.set_Channel(self.in_conn)
+        out_channel = self.set_Channel(self.out_conn)
+        ns_channel = self.set_Channel(self.out_conn)
+        # Create queues
+        in_channel.queue_declare(queue=self.src_queue, durable=True)
+        out_channel.queue_declare(queue=self.dest_queue, durable=True)
+        create_namespace_queues(self.queue_namespace)
     def from_env(self) -> None: #setAllParams(self):
         default_ns = str(uuid.uuid4().hex)
         self.rbt_srv = self.set_env_param('RABBIT_SRV',r'rabbit-queue')
@@ -30,6 +55,13 @@ class queue_CONN:
     def write_output(self, op_msg) -> None:
         # Build in publish limiter
         return
+    def close_connections(self):
+        if self.in_conn is not None:
+            self.in_conn.close()
+        if self.out_conn is not None:
+            self.out_conn.close()
+
+
 class sftp_CONN:
     def __init__(self):
         self.ResultAr = []
@@ -56,9 +88,6 @@ class sftp_CONN:
         param = os.getenv(paramName)
         res = defaultStr if not param else param
         return res
-    # def Connect(self):
-    #     scon = pysftp.Connection(host=self.remote_host, username=self.usr, password=self.pwd, port=self.port, cnopts=self.cnopts)
-    #     return scon
     def get_dir_list(self, scon, srcPath):
         # Set callback functions
         wtcb = pysftp.WTCallbacks()
@@ -66,7 +95,6 @@ class sftp_CONN:
         scon.walktree(srcPath, fcallback=wtcb.file_cb, dcallback=wtcb.dir_cb, ucallback=wtcb.unk_cb)
         lAr = wtcb.flist
         return lAr
-        
     def get_conn(self) -> pysftp.Connection:
         """
         Returns an SFTP connection object
@@ -84,7 +112,6 @@ class sftp_CONN:
                 conn_params['password'] = self.pwd
             self.conn = pysftp.Connection(**conn_params)
         return self.conn
-
     def close_conn(self) -> None:
         """
         Closes the connection
@@ -101,9 +128,6 @@ class sftp_CONN:
         """
         conn = self.get_conn()
         return conn.exists(path)
-
-    ####################################################
-
     def create_directory(self, remote_directory: str) -> bool:
         """Change to this directory, recursively making new folders if needed.
         Returns True if any folders were created."""
@@ -122,12 +146,10 @@ class sftp_CONN:
             sftp.chdir(remote_directory) # sub-directory exists
         except IOError:
             dirname, basename = os.path.split(remote_directory.rstrip('/'))
-            create_directory(dirname) # make parent directories
+            self.create_directory(dirname) # make parent directories
             sftp.mkdir(basename) # sub-directory missing, so created it
             sftp.chdir(basename)
             return True
-
-
     def download_file(self, locDir: str, remotePath: str) -> str:
         res = None
         if self.conn is None:
@@ -149,7 +171,7 @@ class sftp_CONN:
             print(str(err))
             traceback.print_tb(err.__traceback__)
         return res
-    def upload_sftp(self, locPath, remotePath) -> str:
+    def upload_file(self, locPath, remotePath) -> str:
         res = None
         if self.conn is None:
             self.get_conn()
@@ -169,7 +191,7 @@ class sftp_CONN:
             traceback.print_tb(err.__traceback__)
             raise
         return res
-    def delete_sftp(self, remotePath: str):
+    def delete_file(self, remotePath: str):
         if self.conn is None:
             self.get_conn()
         sftp = self.conn
@@ -179,7 +201,7 @@ class sftp_CONN:
             print("An error occurred while deleting file from SFTP server.")
             print(str(err))
             traceback.print_tb(err.__traceback__)
-    def append_sftp(self, remotePath_a, remotePath_b):
+    def append_file(self, remotePath_a, remotePath_b):
         if self.conn is None:
             self.get_conn()
         sftp = self.conn
@@ -197,61 +219,72 @@ class sftp_CONN:
             traceback.print_tb(err.__traceback__)
         return res
 
-        
+
+
 def setParam(paramName,defaultStr):
     param = os.getenv(paramName)
     res = defaultStr if not param else param
     return res
-# Class for Fault Extract
-def main ():
+
+def main():
+    # Set sftp wrapper
     sfCon = sftp_CONN()
-    sfCon.setAllParams()
-    pAr = sfCon.getParams()
-
-    rbt_srv = setParam('RABBIT_SRV','rabbit-queue')
-    frq = int(setParam('FREQUENCY_SEC','30'))
-    pub_limit = int(setParam('PUBLISHING_LIMIT','20'))
-    trgt_queue = setParam('TARGET_QUEUE','new_files')
-
+    sfCon.from_env()
+    pAr = sfCon.to_list
     try:
-        print('Setting start up delay')
-        print()
-        time.sleep(10)
+        # Get sftp connections
+        ## Scope connection to self maintain
+        with sfCon.get_conn() as sftp:
+            with sftp.open(mst_path,'a') as f_a:
+                # Connect to RabbitMQ server
+                print(' [-] Connecting to RabbitMQ server',rbt_srv)
+                with pika.BlockingConnection(pika.ConnectionParameters(rbt_srv)) as connection:
+                    channel = connection.channel()
+                    channel_trgt = connection.channel()
+                    # Add target queue
+                    # Add Source queue
 
-        print(' [*] Connecting to SFTP server...')
-        print(' [-] Retriving file list...')
-        # cnopts.hostkeys = None
-        with sfCon.Connect() as sftp:
-            # list directory 
-            fAr = sfCon.getDirList(sftp, sfCon.src)
+                    print(' [+] Connected to RabbitMQ')
+                    # Declare source queue
+                    channel.queue_declare(queue=src_queue, durable=True)
 
-        print('Connecting to rabbit ',rbt_srv)
-        with pika.BlockingConnection(pika.ConnectionParameters(rbt_srv)) as connection:
-            channel = connection.channel()
+                    def callback(ch, method, properties, filePath):
+                        try:
+                            print()
+                            print(" [*] Appending {0}".format(filePath))
+                            
+                            append_sftp(sftp,f_a,filePath)
 
-            print('Connected')
-            channel.queue_declare(queue=trgt_queue, durable=True)
-            # channel.queue_declare(queue=trgt_queue)
-            channel.queue_purge(queue=trgt_queue) 
+                            # # Remove source file
+                            # delete_sftp(sftp,filePath)
 
-            i=0
-            for f in fAr:
-                fh = os.path.join(sfCon.src,f)
-                channel.basic_publish(exchange='',
-                                    routing_key=trgt_queue,
-                                    body=str(fh))
-                i+=1
-                if i == pub_limit:
-                    break
-            print(" [x] Sent", i,"files to the queue")
+                            # # Report completion
+                            # reportStatus(channel_trgt,trgt_queue,str(resRemotePath))
 
-            connection.close()
+                            # Ack message proc completion
+                            ch.basic_ack(delivery_tag=method.delivery_tag)
+                        except Exception as err:
+                            print(' [!] Error appending file {0} to master {1}'.format(str(filePath),mst_file))
+
+                    channel.basic_qos(prefetch_count=1)
+                    channel.basic_consume(queue=src_queue, on_message_callback=callback, auto_ack=False)
+
+                    print(' [*] Waiting for messages. To exit press CTRL+C')
+                    channel.start_consuming()
+                    print('queue is empty...')
+
+                    connection.close()
         time.sleep(frq)
     
     except Exception as err:
-        print("An error occurred while retriving the file.")
+        print()
+        print("An error occured wwhile retriving the file.")
         print(str(err))
         traceback.print_tb(err.__traceback__)
+
+()
+
+    return
 
 if __name__ == '__main__':
     main()
