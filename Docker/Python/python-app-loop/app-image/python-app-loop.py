@@ -1,26 +1,49 @@
 import os
 import pysftp
 import traceback
-import time 
+import time
 import pika
 import pathlib
+import uuid
 
 ##### Class #####
+class queue_CONN:
+    def __init__(self):
+        self.ResultAr = []
+        return
+    def from_env(self) -> None: #setAllParams(self):
+        default_ns = str(uuid.uuid4().hex)
+        self.rbt_srv = self.set_env_param('RABBIT_SRV',r'rabbit-queue')
+        self.queue_namespace = self.set_env_param('NAMESPACE',default_ns)
+        self.src_queue = self.set_env_param('INPUT_QUEUE',r'new_files')
+        self.dest_queue = self.set_env_param('OUTPUT_QUEUE',r'processed_files')
+    def to_list(self):
+        self.ResultAr.append(self.rbt_srv)
+        self.ResultAr.append(self.queue_namespace)
+        self.ResultAr.append(self.src_queue)
+        self.ResultAr.append(self.dest_queue)
+        return self.ResultAr
+    def set_env_param(self, paramName: str,defaultStr: str) -> str:
+        param = os.getenv(paramName)
+        res = defaultStr if not param else param
+        return res
+    def write_output(self, op_msg) -> None:
+        # Build in publish limiter
+        return
 class sftp_CONN:
     def __init__(self):
         self.ResultAr = []
         return
-    def from_env(self): #setAllParams(self):
-        self.horemote_hostst = self.setEnvParam('SFTP_HOST',r'localhost')
-        self.port = int(self.setEnvParam('SFTP_PORT',r'2222'))
-        self.usr = self.setEnvParam('SFTP_USR',r'admin')
-        self.pwd = self.setEnvParam('SFTP_PWD',r'devpwd')
-        self.src = self.setEnvParam('SOURCE_PATH',r'/upload/raw')
-        self.destPath = self.setEnvParam('DEST_PATH',r'/upload/converted')
+    def from_env(self) -> None: #setAllParams(self):
+        self.remote_host = self.set_env_param('SFTP_HOST',r'localhost')
+        self.port = int(self.set_env_param('SFTP_PORT',r'22'))
+        self.usr = self.set_env_param('SFTP_USR',r'admin')
+        self.pwd = self.set_env_param('SFTP_PWD',r'pwd')
+        self.src = self.set_env_param('SOURCE_PATH',r'/src')
+        self.destPath = self.set_env_param('DEST_PATH',r'/trgt')
         c = pysftp.CnOpts()
         c.hostkeys = None
         self.cnopts = c
-        return 0
     def to_list(self):
         self.ResultAr.append(self.remote_host)
         self.ResultAr.append(self.port)
@@ -43,7 +66,7 @@ class sftp_CONN:
         scon.walktree(srcPath, fcallback=wtcb.file_cb, dcallback=wtcb.dir_cb, ucallback=wtcb.unk_cb)
         lAr = wtcb.flist
         return lAr
-##################################################
+        
     def get_conn(self) -> pysftp.Connection:
         """
         Returns an SFTP connection object
@@ -81,7 +104,7 @@ class sftp_CONN:
 
     ####################################################
 
-    def create_directory(self, remote_directory: str):
+    def create_directory(self, remote_directory: str) -> bool:
         """Change to this directory, recursively making new folders if needed.
         Returns True if any folders were created."""
         if self.conn is None:
@@ -99,7 +122,7 @@ class sftp_CONN:
             sftp.chdir(remote_directory) # sub-directory exists
         except IOError:
             dirname, basename = os.path.split(remote_directory.rstrip('/'))
-            create_directory(sftp, dirname) # make parent directories
+            create_directory(dirname) # make parent directories
             sftp.mkdir(basename) # sub-directory missing, so created it
             sftp.chdir(basename)
             return True
@@ -116,8 +139,8 @@ class sftp_CONN:
             rp = str(remotePath)
             p = pathlib.Path(rp.replace("b'", "").replace("'", ""))
             b = pathlib.Path(str(locDir))
-            locPath = b.joinpath(p.name) 
-            # Copy files locally 
+            locPath = b.joinpath(p.name)
+            # Copy files locally
             sftp.get(str(p), str(locPath))
             res = locPath
         except Exception as err:
@@ -126,7 +149,7 @@ class sftp_CONN:
             print(str(err))
             traceback.print_tb(err.__traceback__)
         return res
-    def upload_sftp(self, locDir: str, remotePath: str) -> str:
+    def upload_sftp(self, locPath, remotePath) -> str:
         res = None
         if self.conn is None:
             self.get_conn()
@@ -135,10 +158,9 @@ class sftp_CONN:
             # Set local file paths
             rp = str(remotePath)
             locPath = str(locPath)
-            
             rDir = pathlib.Path(rp).parent
-            self.create_directory(sftp,rDir)
-            # Copy files remotely 
+            self.create_directory(rDir)
+            # Copy files remotely
             sftp.put(locPath,rp)
             res = rp
         except Exception as err:
@@ -157,20 +179,23 @@ class sftp_CONN:
             print("An error occurred while deleting file from SFTP server.")
             print(str(err))
             traceback.print_tb(err.__traceback__)
-def append_sftp(sftp_conn, remotePath_a, remotePath_b):
-    res = None
-    try:
-        # with sftp_conn.open(remotePath_a,'a') as f_a:
-        with sftp_conn.open(remotePath_b,'rb') as f_b:
-            appStr = f_b.read().decode('utf-8') + '\n'
-            remotePath_a.writelines(appStr)
-        rp = str(remotePath_a)
-        res = rp
-    except Exception as err:
-        print("An error occurred while appending text to file on SFTP server.")
-        print(str(err))
-        traceback.print_tb(err.__traceback__)
-    return res
+    def append_sftp(self, remotePath_a, remotePath_b):
+        if self.conn is None:
+            self.get_conn()
+        sftp = self.conn
+        res = None
+        try:
+            # with sftp_conn.open(remotePath_a,'a') as f_a:
+            with sftp.open(remotePath_b,'rb') as f_b:
+                appStr = f_b.read().decode('utf-8') + '\n'
+                remotePath_a.writelines(appStr)
+            rp = str(remotePath_a)
+            res = rp
+        except Exception as err:
+            print("An error occurred while appending text to file on SFTP server.")
+            print(str(err))
+            traceback.print_tb(err.__traceback__)
+        return res
 
         
 def setParam(paramName,defaultStr):

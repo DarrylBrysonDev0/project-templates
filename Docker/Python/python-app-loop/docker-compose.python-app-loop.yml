@@ -2,43 +2,32 @@ version: '3.4'
 
 services:
   broker:
-    image: file-broker-app-py
+    image: python-app-loop
     build:
-      context: ./broker
-      dockerfile: ./Dockerfile.file-broker-py
+      context: ./app-image
+      dockerfile: ./Dockerfile.python-app-loop
     environment:
+      # SFTP Parameters
       - SFTP_HOST=sftp-srv
       - SFTP_PORT=22
       - SFTP_USR=admin
       - SFTP_PWD=devpwd
-      - SOURCE_PATH=/upload/raw
+      # Communication queue parameters
       - RABBIT_SRV=rabbit-queue
-      - TARGET_QUEUE=new_files
-      - PUBLISHING_LIMIT=200000
+      - NAMESPACE=python_app_loop
+      - INPUT_QUEUE=new_files
+      - OUTPUT_QUEUE=processed_files
+      # Behavior parameters
+      - PUBLISHING_LIMIT=200
       - FREQUENCY_SEC=300
-    # restart: unless-stopped
+      # File Access
+      - SOURCE_PATH=/src
+      - DEST_PATH=/trgt
+      - SECONDARY_PATHS=/dir1
+      
+    # restart: unless-stopped # un-comment to enable loop
     networks:
-      - ddec-pipeline-network
-  
-  parser:
-    image: ddec-parser-mc-app-py
-    build:
-      context: ./parser
-      dockerfile: ./Dockerfile.test
-    environment:
-      - SFTP_HOST=sftp-srv
-      - SFTP_PORT=22
-      - SFTP_USR=admin
-      - SFTP_PWD=devpwd
-      - RABBIT_SRV=rabbit-queue
-      - DEST_PATH=/upload/DM01/mc 
-      - SOURCE_PATH=/upload/converted
-      - SOURCE_QUEUE=unboxed_files
-      - TARGET_QUEUE=parsed_files
-    # restart: unless-stopped
-    networks:
-      - ddec-pipeline-network
-
+      - microservice-network
 networks:
-  ddec-pipeline-network:
+  microservice-network:
     external: true
