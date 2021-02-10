@@ -7,61 +7,6 @@ import pathlib
 import uuid
 
 ##### Class #####
-class queue_CONN:
-    def __init__(self):
-        self.ResultAr = []
-        return
-    def create_Connection(self):
-        connection =  pika.BlockingConnection(pika.ConnectionParameters(self.rbt_srv))
-        return connection
-    def create_channel(self, connObj):
-        ch = connObj.channel()
-        return ch
-    def create_namespace_queues(self, chObj: str) -> None:
-        self.success_queue = 'pass_' + chObj
-        self.fail_queue = 'fail_' + chObj
-        self.progress_queue = 'status_' + chObj
-        chObj.queue_declare(queue=self.success_queue, durable=True)
-        chObj.queue_declare(queue=self.fail_queue, durable=True)
-        chObj.queue_declare(queue=self.progress_queue, durable=True)
-    def create_Queue(self) -> None:
-        # Create connections
-        self.in_conn = self.set_Connection()
-        self.out_conn = self.set_Connection()
-        # Create channels
-        in_channel = self.set_Channel(self.in_conn)
-        out_channel = self.set_Channel(self.out_conn)
-        ns_channel = self.set_Channel(self.out_conn)
-        # Create queues
-        in_channel.queue_declare(queue=self.src_queue, durable=True)
-        out_channel.queue_declare(queue=self.dest_queue, durable=True)
-        create_namespace_queues(self.queue_namespace)
-    def from_env(self) -> None: #setAllParams(self):
-        default_ns = str(uuid.uuid4().hex)
-        self.rbt_srv = self.set_env_param('RABBIT_SRV',r'rabbit-queue')
-        self.queue_namespace = self.set_env_param('NAMESPACE',default_ns)
-        self.src_queue = self.set_env_param('INPUT_QUEUE',r'new_files')
-        self.dest_queue = self.set_env_param('OUTPUT_QUEUE',r'processed_files')
-    def to_list(self):
-        self.ResultAr.append(self.rbt_srv)
-        self.ResultAr.append(self.queue_namespace)
-        self.ResultAr.append(self.src_queue)
-        self.ResultAr.append(self.dest_queue)
-        return self.ResultAr
-    def set_env_param(self, paramName: str,defaultStr: str) -> str:
-        param = os.getenv(paramName)
-        res = defaultStr if not param else param
-        return res
-    def write_output(self, op_msg) -> None:
-        # Build in publish limiter
-        return
-    def close_connections(self):
-        if self.in_conn is not None:
-            self.in_conn.close()
-        if self.out_conn is not None:
-            self.out_conn.close()
-
-
 class sftp_CONN:
     def __init__(self):
         self.ResultAr = []
@@ -91,7 +36,7 @@ class sftp_CONN:
     def get_dir_list(self, scon, srcPath):
         # Set callback functions
         wtcb = pysftp.WTCallbacks()
-        # Recursivly map files
+        # Recursively map files
         scon.walktree(srcPath, fcallback=wtcb.file_cb, dcallback=wtcb.dir_cb, ucallback=wtcb.unk_cb)
         lAr = wtcb.flist
         return lAr
@@ -219,6 +164,131 @@ class sftp_CONN:
             traceback.print_tb(err.__traceback__)
         return res
 
+'''
+    - ini
+    - create queues
+    - set_input_function
+    - read_input
+    - write to output
+    - write status
+'''
+class queue_CONN:
+    def __init__(self):
+        self.ResultAr = []
+        return
+    def set_input_function(self, input_func) -> None:
+        self._input_func = input_func
+        return
+    def open_Connection(self):
+        connection =  (pika.BlockingConnection(
+                            parameters=pika.ConnectionParameters(self.rbt_srv)))
+        return connection
+    def open_channel(self, connObj):
+        ch = connObj.channel()
+        ch.basic_qos(prefetch_count=1)
+        return ch
+    def create_namespace_queues(self, chObj, nsStr: str) -> None:
+        self.success_queue = 'pass_' + nsStr
+        self.fail_queue = 'fail_' + nsStr
+        self.progress_queue = 'status_' + nsStr
+        chObj.queue_declare(queue=self.success_queue, durable=True)
+        chObj.queue_declare(queue=self.fail_queue, durable=True)
+        chObj.queue_declare(queue=self.progress_queue, durable=True)
+        return
+
+    def create_Queue(self) -> None:
+        # Create connections
+        self.in_conn = self.open_Connection()
+        self.out_conn = self.open_Connection()
+        # Create channels
+        self.in_channel = self.open_channel(self.in_conn)
+        self.out_channel = self.open_channel(self.out_conn)
+        self.ns_channel = self.open_channel(self.out_conn)
+        # Create queues
+        self.in_channel.queue_declare(queue=self.src_queue, durable=True)
+        self.out_channel.queue_declare(queue=self.dest_queue, durable=True)
+        ## Create namespace based queues
+        create_namespace_queues(self.ns_channel)
+        return
+    def from_env(self) -> None: #setAllParams(self):
+        default_ns = str(uuid.uuid4().hex)
+        self.rbt_srv = self.set_env_param('RABBIT_SRV',r'rabbit-queue')
+        self.queue_namespace = self.set_env_param('NAMESPACE',default_ns)
+        self.src_queue = self.set_env_param('INPUT_QUEUE',r'new_files')
+        self.dest_queue = self.set_env_param('OUTPUT_QUEUE',r'processed_files')
+        return
+    def to_list(self):
+        self.ResultAr.append(self.rbt_srv)
+        self.ResultAr.append(self.queue_namespace)
+        self.ResultAr.append(self.src_queue)
+        self.ResultAr.append(self.dest_queue)
+        return self.ResultAr
+    def set_env_param(self, paramName: str,defaultStr: str) -> str:
+        param = os.getenv(paramName)
+        res = defaultStr if not param else param
+        return res
+    # Read From Input
+    def start_input_stream(self) -> None:
+        if (self.in_channel is not None) and (self._input_func is not None):
+            self.ip_consuming_tag = self.in_channel.basic_consume(
+                                        self.src_queue, self._input_func)
+        return
+    def stop_input_stream(self) -> None:
+        if (self.in_channel is not None) and (self.ip_consuming_tag is not None):
+            stop_consuming(self.in_channel, self.ip_consuming_tag)
+        return
+    def stop_consuming(self, ch, ch_tag) -> None:
+        ch.basic_cancel(ch_tag)
+        return
+    # Write to Output
+    def write_output(self, op_msg: str) -> None:
+        # Build in publish limiter
+        if (self.out_channel is not None) and (self.dest_queue is not None):
+            publish_message(self.out_channel, self.dest_queue,op_msg)
+        return
+
+    # Communicate status
+    ## Write Success
+    def write_success(self, op_msg: str) -> None:
+        # Build in publish limiter
+        if (self.out_channel is not None) and (self.success_queue is not None):
+            publish_message(self.out_channel, self.success_queue,op_msg)
+        return
+    ## Write Fault
+    def write_fault(self, op_msg: str) -> None:
+        # Build in publish limiter
+        if (self.out_channel is not None) and (self.fail_queue is not None):
+            publish_message(self.out_channel, self.fail_queue,op_msg)
+        return
+    ## Write Status
+    def write_status(self, op_msg: str) -> None:
+        # Build in publish limiter
+        if (self.out_channel is not None) and (self.progress_queue is not None):
+            publish_message(self.out_channel, self.progress_queue, op_msg)
+        return
+
+    # Publish message to queue
+    def publish_message(self, channel, queueName: str, op_msg: str) -> None:
+        # Build in publish limiter
+        channel.basic_publish(exchange='',
+                        routing_key=queueName,
+                        body=op_msg)
+        return
+    def close_all_connections(self) -> None:
+        if self.in_conn is not None:
+            close_connection(self.in_conn)
+        if self.out_conn is not None:
+            close_connection(self.out_conn)
+        return
+
+    def close_connection(self, conn) -> None:
+        # self._consuming = False
+        if not conn.is_closing and not conn.is_closed:
+            conn.close()
+        return
+
+
+
 
 
 def setParam(paramName,defaultStr):
@@ -231,6 +301,9 @@ def main():
     sfCon = sftp_CONN()
     sfCon.from_env()
     pAr = sfCon.to_list
+
+    rbt_con = queue_CONN()
+    rbt_con.from_env
     try:
         # Get sftp connections
         ## Scope connection to self maintain
@@ -281,9 +354,6 @@ def main():
         print("An error occured wwhile retriving the file.")
         print(str(err))
         traceback.print_tb(err.__traceback__)
-
-()
-
     return
 
 if __name__ == '__main__':
