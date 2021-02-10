@@ -21,9 +21,9 @@ class queue_CONN:
         self.success_queue = 'pass_' + chObj
         self.fail_queue = 'fail_' + chObj
         self.progress_queue = 'status_' + chObj
-        ns_channel.queue_declare(queue=self.success_queue, durable=True)
-        ns_channel.queue_declare(queue=self.fail_queue, durable=True)
-        ns_channel.queue_declare(queue=self.progress_queue, durable=True)
+        chObj.queue_declare(queue=self.success_queue, durable=True)
+        chObj.queue_declare(queue=self.fail_queue, durable=True)
+        chObj.queue_declare(queue=self.progress_queue, durable=True)
     def create_Queue(self) -> None:
         # Create connections
         self.in_conn = self.set_Connection()

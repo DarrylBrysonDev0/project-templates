@@ -9,31 +9,31 @@ tags:
   - docker
 excerpt: "Summary information of interface classes for container solutions"
 ---
-# Microservice Interface Class Summarry
+# Microservice Interface Class Summary
 ## Overview
 Summary information of interface classes for container solutions.
 
-## sftp_CONN
+## Class: sftp_CONN
 Class wrapper for pysftp library. Implementation of sftp server client interface logic for file access.
 
-- Connection managment
+- Connection management
   - get_conn
   - close_conn
-- Directory managment
+- Directory management
   - get_dir_list
   - path_exists
   - create_directory
-- File managment
+- File management
   - download_file
   - upload_sftp
   - delete_sftp
   - append_sftp
-- State managment
+- State management
   - from_env
   - to_list
   - set_env_param
 
-## queue_CONN
+## Class: queue_CONN
 Class wrapper for pika library. Implementation of RabbitMQ interface logic for intra-container/task messaging.
 - Connection manager
   - create connections
@@ -48,7 +48,7 @@ Class wrapper for pika library. Implementation of RabbitMQ interface logic for i
 - output connection
   - output channel
   - namespace channel
-- State managment
+- State management
   - from_env
   - to_list
   - set_env_param
