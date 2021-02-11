@@ -1,0 +1,33 @@
+version: '3.4'
+
+services:
+  py-app-loop:
+    image: python-app-loop
+    build:
+      context: ./app-image
+      dockerfile: ./Dockerfile.python-app-loop
+    environment:
+      # SFTP Parameters
+      - SFTP_HOST=sftp-srv
+      - SFTP_PORT=22
+      - SFTP_USR=admin
+      - SFTP_PWD=devpwd
+      # Communication queue parameters
+      - RABBIT_SRV=rabbit-queue
+      - NAMESPACE=python_app_loop
+      - INPUT_QUEUE=new_files
+      - OUTPUT_QUEUE=processed_files
+      # Behavior parameters
+      - PUBLISHING_LIMIT=200
+      - FREQUENCY_SEC=300
+      - ENABLE_NAMESPACE_QUEUE=1
+      # File Access
+      - SOURCE_PATH=/src
+      - DEST_PATH=/trgt
+      - SECONDARY_PATHS=/dir1
+    # restart: unless-stopped # un-comment to enable loop
+    networks:
+      - microservice-network
+networks:
+  microservice-network:
+    external: true
