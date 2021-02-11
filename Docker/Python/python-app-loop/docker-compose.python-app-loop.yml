@@ -20,6 +20,7 @@ services:
       # Behavior parameters
       - PUBLISHING_LIMIT=200
       - FREQUENCY_SEC=300
+      - ENABLE_NAMESPACE_QUEUE=1
       # File Access
       - SOURCE_PATH=/src
       - DEST_PATH=/trgt

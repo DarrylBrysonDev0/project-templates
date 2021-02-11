@@ -5,28 +5,35 @@ import time
 import pika
 import pathlib
 import uuid
+import sys
 
 ##### Class #####
-'''
-    - ini
-    - from_env
-    - 
-'''
 class sftp_CONN:
     # Ini
     def __init__(self):
         self.ResultAr = []
+
+        self.remote_host = None
+        self.port = None
+        self.usr = None
+        self.pwd = None
+        self.src = None
+        self.destPath = None
+
+        self.conn = None
+
         return
     def __enter__(self):
-        self.setup()
+        res = self.setup()
         pAr = self.to_list()
-        return pAr
+        return res
     def __exit__(self, type, value, traceback):
         self.close_conn()
         return
     def setup(self) -> None :
         self.from_env()
-        return
+        conn = self.get_conn()
+        return conn
     def from_env(self) -> None: #setAllParams(self):
         self.remote_host = self.set_env_param('SFTP_HOST',r'localhost')
         self.port = int(self.set_env_param('SFTP_PORT',r'22'))
@@ -180,18 +187,25 @@ class sftp_CONN:
             traceback.print_tb(err.__traceback__)
         return res
 
-'''
-    - ini
-    - create queues
-    - set_input_function
-    - read_input
-    - write to output
-    - write status
-'''
 class queue_CONN:
     # Ini
     def __init__(self):
+        # ini class attributes
         self.ResultAr = []
+
+        self.rbt_srv = None
+        self.queue_namespace = None
+        self.src_queue = None
+        self.dest_queue = None
+        self.enable_namespace = None
+        self.pub_limit = None
+
+        self.in_conn = None
+        self.out_conn = None
+        # Create channels
+        self.in_channel = None
+        self.out_channel = None
+        self.ns_channel = None
         return
     def __enter__(self):
         self.setup()
@@ -204,6 +218,11 @@ class queue_CONN:
         self.from_env()
         self.create_named_channel_queues()
         return
+    def _isAttribSet(self, attr) -> bool:
+        res = False
+        try: res =  hasattr(self,attr)
+        except Exception as err: res = False
+        return res
     def from_env(self) -> None: #setAllParams(self):
         '''
             Set class parameters from environment variables or set development defaults
@@ -213,7 +232,8 @@ class queue_CONN:
         self.queue_namespace = self.set_env_param('NAMESPACE',default_ns)
         self.src_queue = self.set_env_param('INPUT_QUEUE',r'new_files')
         self.dest_queue = self.set_env_param('OUTPUT_QUEUE',r'processed_files')
-        self.enable_namespace = bool(int(self.set_env_param('ENABLE NAMESPACE_QUEUE',r'0')))
+        self.enable_namespace = bool(int(self.set_env_param('ENABLE_NAMESPACE_QUEUE',r'0')))
+        self.pub_limit = int(self.set_env_param('PUBLISHING_LIMIT','20'))
         return
     def to_list(self):
         '''
@@ -262,10 +282,12 @@ class queue_CONN:
     ### Start/Stop Input channel
     def start_input_stream(self) -> None:
         if (self.in_channel is not None) and (self._input_func is not None):
+        # if self._isAttribSet(self.in_channel) and self._isAttribSet(self._input_func):
             self.start_consuming(self.in_channel, self.src_queue, self._input_func)
         return
     def stop_input_stream(self) -> None:
         if (self.in_channel is not None) and (self.ip_consuming_tag is not None):
+        # if self._isAttribSet('in_channel') and self._isAttribSet('ip_consuming_tag'):
             self.stop_consuming(self.in_channel, self.ip_consuming_tag)
         return
     ### Write to Output channel
@@ -331,70 +353,62 @@ class queue_CONN:
             self.publish_message(self.out_channel, self.progress_queue, op_msg)
         return
 
+# Function Def
 def set_env_param(paramName,defaultStr):
     param = os.getenv(paramName)
     res = defaultStr if not param else param
     return res
 
 def main():
-    # Set sftp wrapper
-    sfCon = sftp_CONN()
-    sfCon.from_env()
-    pAr = sfCon.to_list
+    # Set sftp interface
+    sftp_interface = sftp_CONN()
+    # Set queue interface
+    rbt_interface = queue_CONN()
 
-    rbt_con = queue_CONN()
-    rbt_con.from_env
+    # Get frequency of app container
+    frq = int(set_env_param('FREQUENCY_SEC','300'))
+    # Get Application name
+    app_name = set_env_param('APP_NAME',str(os.uname()[1]))
     try:
-        # Get sftp connections
-        ## Scope connection to self maintain
-        with sfCon.get_conn() as sftp:
-            with sftp.open(mst_path,'a') as f_a:
-                # Connect to RabbitMQ server
-                print(' [-] Connecting to RabbitMQ server',rbt_srv)
-                with pika.BlockingConnection(pika.ConnectionParameters(rbt_srv)) as connection:
-                    channel = connection.channel()
-                    channel_trgt = connection.channel()
-                    # Add target queue
-                    # Add Source queue
+        # Connect to SFTP server
+        print(' [*] Connecting to SFTP server')
+        with sftp_interface as sftp:
+            print(' [+] Connected to SFTP server')
+            # Connect to RabbitMQ server
+            print(' [*] Connecting to RabbitMQ server')
+            with rbt_interface as rbt_params:
+                print(' [+] Connected to RabbitMQ')
+                # Set input calback function
+                def input_callback(ch, method, properties, msg):
+                    try:
+                        # Do something cool
+                        print(msg)
+                        '''
+                            <! Something cool>
+                        '''
+                        # Ack message proc completion
+                        ch.basic_ack(delivery_tag=method.delivery_tag)
+                    except Exception as err:
+                        print(' [!] Error executing input stream {0}.'.format(app_name))
 
-                    print(' [+] Connected to RabbitMQ')
-                    # Declare source queue
-                    channel.queue_declare(queue=src_queue, durable=True)
+                rbt_interface.set_input_function(input_callback)
+                rbt_interface.start_input_stream()
 
-                    def callback(ch, method, properties, filePath):
-                        try:
-                            print()
-                            print(" [*] Appending {0}".format(filePath))
-                            
-                            append_sftp(sftp,f_a,filePath)
-
-                            # # Remove source file
-                            # delete_sftp(sftp,filePath)
-
-                            # # Report completion
-                            # reportStatus(channel_trgt,trgt_queue,str(resRemotePath))
-
-                            # Ack message proc completion
-                            ch.basic_ack(delivery_tag=method.delivery_tag)
-                        except Exception as err:
-                            print(' [!] Error appending file {0} to master {1}'.format(str(filePath),mst_file))
-
-                    channel.basic_qos(prefetch_count=1)
-                    channel.basic_consume(queue=src_queue, on_message_callback=callback, auto_ack=False)
-
-                    print(' [*] Waiting for messages. To exit press CTRL+C')
-                    channel.start_consuming()
-                    print('queue is empty...')
-
-                    connection.close()
+                rbt_interface.close_all_connections()
         time.sleep(frq)
-    
     except Exception as err:
         print()
-        print("An error occured wwhile retriving the file.")
+        print("An error occured while executing main proc.")
         print(str(err))
         traceback.print_tb(err.__traceback__)
     return
 
 if __name__ == '__main__':
-    main()
+    try:
+        main()
+    except KeyboardInterrupt:
+        print('Interrupted')
+        try:
+            sys.exit(0)
+        except SystemExit:
+            os._exit(0)
