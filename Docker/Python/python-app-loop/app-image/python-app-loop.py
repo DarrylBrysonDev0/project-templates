@@ -298,7 +298,6 @@ class queue_CONN:
         if (self.out_channel is not None) and (self.dest_queue is not None):
             self.publish_message(self.out_channel, self.dest_queue,op_msg)
         return
-    
     ## General channels
     ### Publish message to queue
     def publish_message(self, channel, queueName: str, op_msg: str) -> None:
@@ -316,7 +315,6 @@ class queue_CONN:
     def stop_consuming(self, ch, ch_tag) -> None:
         ch.basic_cancel(ch_tag)
         return
-    
     # Connection State
     def open_Connection(self):
         connection =  (pika.BlockingConnection(
@@ -335,7 +333,6 @@ class queue_CONN:
             if conn.is_open:
                 conn.close()
         return
-
     # Communicate status
     ## Write Success
     def write_success(self, op_msg: str) -> None:
@@ -355,7 +352,6 @@ class queue_CONN:
         if (self.out_channel is not None) and (self.progress_queue is not None):
             self.publish_message(self.out_channel, self.progress_queue, op_msg)
         return
-
 # Function Def
 def set_env_param(paramName,defaultStr):
     param = os.getenv(paramName)
