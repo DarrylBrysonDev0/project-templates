@@ -281,9 +281,11 @@ class queue_CONN:
         return
     ### Start/Stop Input channel
     def start_input_stream(self) -> None:
+        print(' [*] Starting input stream')
         if (self.in_channel is not None) and (self._input_func is not None):
         # if self._isAttribSet(self.in_channel) and self._isAttribSet(self._input_func):
-            self.start_consuming(self.in_channel, self.src_queue, self._input_func)
+            self.ip_consuming_tag = self.start_consuming(self.in_channel, self.src_queue, self._input_func)
+            print(' [+] Input stream started with consumer_tag {0}'.format(str(self.ip_consuming_tag)))
         return
     def stop_input_stream(self) -> None:
         if (self.in_channel is not None) and (self.ip_consuming_tag is not None):
@@ -308,8 +310,9 @@ class queue_CONN:
     ### Start/Stop consumer
     def start_consuming(self, channel, queueName, func):
         if (channel is not None) and (queueName is not None) and (func is not None):
-            self.ip_consuming_tag = self.in_channel.basic_consume(self.src_queue, self._input_func)
-        return
+            ctag = self.in_channel.basic_consume(self.src_queue, self._input_func)
+            channel.start_consuming()
+        return ctag
     def stop_consuming(self, ch, ch_tag) -> None:
         ch.basic_cancel(ch_tag)
         return
@@ -329,7 +332,7 @@ class queue_CONN:
         return
     def close_connection(self, conn) -> None:
         if conn is not None:
-            if not conn.is_closing and not conn.is_closed:
+            if conn.is_open:
                 conn.close()
         return
 
@@ -380,21 +383,26 @@ def main():
                 print(' [+] Connected to RabbitMQ')
                 # Set input calback function
                 def input_callback(ch, method, properties, msg):
+                    print(" [x] Received %r" % msg)
                     try:
                         # Do something cool
                         print(msg)
                         '''
                             <! Something cool>
                         '''
+                        # Report Success to OP
+                        # Report Success to status channel if set
+
                         # Ack message proc completion
                         ch.basic_ack(delivery_tag=method.delivery_tag)
                     except Exception as err:
                         print(' [!] Error executing input stream {0}.'.format(app_name))
+                        # Report failure to fault channel
 
                 rbt_interface.set_input_function(input_callback)
                 rbt_interface.start_input_stream()
 
-                rbt_interface.close_all_connections()
+                # rbt_interface.close_all_connections()
         time.sleep(frq)
     except Exception as err:
         print()

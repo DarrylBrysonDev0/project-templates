@@ -1,7 +1,7 @@
 version: '3.4'
 
 services:
-  broker:
+  py-app-loop:
     image: python-app-loop
     build:
       context: ./app-image

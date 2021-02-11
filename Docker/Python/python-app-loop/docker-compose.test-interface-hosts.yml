@@ -4,8 +4,6 @@ services:
   sftp-srv:
     image: atmoz/sftp
     volumes:
-        # - /mnt/d/GenStore/sample-data-set/ddec-sample-files/ddec-converted-xml/clean:/home/admin/upload/raw:ro
-        # - /mnt/d/GenStore/sample-data-set/ddec-sample-files/ddec/ddec/2020-10-05:/home/admin/upload/raw:ro
         - /mnt/c/data:/home/admin/app_root
         - ./:/home/admin/host
     ports:
