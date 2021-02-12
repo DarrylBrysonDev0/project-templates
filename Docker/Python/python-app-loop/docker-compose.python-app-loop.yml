@@ -24,7 +24,7 @@ services:
       # File Access
       - SOURCE_PATH=/src
       - DEST_PATH=/trgt
-      - SECONDARY_PATHS=/dir1
+      #- SECONDARY_PATHS=/dir1
     # restart: unless-stopped # un-comment to enable loop
     networks:
       - microservice-network

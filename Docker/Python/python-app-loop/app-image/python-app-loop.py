@@ -2,6 +2,7 @@ import os
 import pysftp
 import traceback
 import time
+from datetime import datetime
 import pika
 import pathlib
 import uuid
@@ -337,22 +338,23 @@ class queue_CONN:
     ## Write Success
     def write_success(self, op_msg: str) -> None:
         # Build in publish limiter
-        if (self.out_channel is not None) and (self.success_queue is not None):
+        if (self.enable_namespace) and (self.out_channel is not None) and (self.success_queue is not None):
             self.publish_message(self.out_channel, self.success_queue,op_msg)
         return
     ## Write Fault
     def write_fault(self, op_msg: str) -> None:
         # Build in publish limiter
-        if (self.out_channel is not None) and (self.fail_queue is not None):
+        if (self.enable_namespace) and (self.out_channel is not None) and (self.fail_queue is not None):
             self.publish_message(self.out_channel, self.fail_queue,op_msg)
         return
     ## Write Status
     def write_status(self, op_msg: str) -> None:
         # Build in publish limiter
-        if (self.out_channel is not None) and (self.progress_queue is not None):
+        if (self.enable_namespace) and (self.out_channel is not None) and (self.progress_queue is not None):
             self.publish_message(self.out_channel, self.progress_queue, op_msg)
         return
-# Function Def
+
+##### Function #####
 def set_env_param(paramName,defaultStr):
     param = os.getenv(paramName)
     res = defaultStr if not param else param
@@ -368,6 +370,8 @@ def main():
     frq = int(set_env_param('FREQUENCY_SEC','300'))
     # Get Application name
     app_name = set_env_param('APP_NAME',str(os.uname()[1]))
+
+    msg_cnt = 0
     try:
         # Connect to SFTP server
         print(' [*] Connecting to SFTP server')
@@ -379,30 +383,37 @@ def main():
                 print(' [+] Connected to RabbitMQ')
                 # Set input calback function
                 def input_callback(ch, method, properties, msg):
-                    print(" [x] Received %r" % msg)
+                    print(" [+] Received %r" % msg)
                     try:
                         # Do something cool
                         print(msg)
                         '''
                             <! Something cool>
                         '''
-                        # Report Success to OP
-                        # Report Success to status channel if set
 
                         # Ack message proc completion
                         ch.basic_ack(delivery_tag=method.delivery_tag)
+
+                        # Register progress
+                        msg_cnt+=1
+                        rbt_interface.write_status(str(msg_cnt))
                     except Exception as err:
                         print(' [!] Error executing input stream {0}.'.format(app_name))
                         # Report failure to fault channel
-
+                        fault_msg = app_name + ' | Timestamp:' + datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+                        rbt_interface.write_fault(success_msg)
+                # Register callback function and start input stream
                 rbt_interface.set_input_function(input_callback)
                 rbt_interface.start_input_stream()
-
+                # Clean up connections
                 # rbt_interface.close_all_connections()
         time.sleep(frq)
+        # Report success
+        success_msg = app_name + ' | Timestamp:' + datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+        rbt_interface.write_success(success_msg)
     except Exception as err:
         print()
-        print("An error occured while executing main proc.")
+        print("An error occurred while executing main proc.")
         print(str(err))
         traceback.print_tb(err.__traceback__)
     return
