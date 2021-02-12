@@ -1,0 +1,62 @@
+version: '3.4'
+
+services:
+  py-app-loop-publisher:
+    image: python-app-loop
+    build:
+      context: ./example-app
+      dockerfile: ./Dockerfile.python-app-loop
+    command: "python python-app-loop-example-pub.py"
+    environment:
+      # SFTP Parameters
+      - SFTP_HOST=sftp-srv
+      - SFTP_PORT=22
+      - SFTP_USR=admin
+      - SFTP_PWD=devpwd
+      # Communication queue parameters
+      - RABBIT_SRV=rabbit-queue
+      - NAMESPACE=python_app_loop_publisher
+      - INPUT_QUEUE=
+      - OUTPUT_QUEUE=new_files
+      # Behavior parameters
+      - PUBLISHING_LIMIT=200
+      - FREQUENCY_SEC=300
+      - ENABLE_NAMESPACE_QUEUE=0
+      # File Access
+      - SOURCE_PATH=/src
+      - DEST_PATH=
+      #- SECONDARY_PATHS=/dir1
+    # restart: unless-stopped # un-comment to enable loop
+    networks:
+      - microservice-network
+  py-app-loop-subscriber:
+    image: python-app-loop
+    build:
+      context: ./example-app
+      dockerfile: ./Dockerfile.python-app-loop
+    command: "python python-app-loop-example-sub.py"
+    environment:
+      # SFTP Parameters
+      - SFTP_HOST=sftp-srv
+      - SFTP_PORT=22
+      - SFTP_USR=admin
+      - SFTP_PWD=devpwd
+      # Communication queue parameters
+      - RABBIT_SRV=rabbit-queue
+      - NAMESPACE=python_app_loop_subscriber
+      - INPUT_QUEUE=new_files
+      - OUTPUT_QUEUE=processed_files
+      # Behavior parameters
+      - PUBLISHING_LIMIT=200
+      - FREQUENCY_SEC=300
+      - ENABLE_NAMESPACE_QUEUE=1
+      # File Access
+      - SOURCE_PATH=
+      - DEST_PATH=
+      #- SECONDARY_PATHS=/dir1
+    # restart: unless-stopped # un-comment to enable loop
+    networks:
+      - microservice-network
+networks:
+  microservice-network:
+    external: true
