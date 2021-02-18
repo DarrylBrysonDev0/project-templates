@@ -1,0 +1,34 @@
+# *** Stage 1 *** Build
+FROM mcr.microsoft.com/dotnet/core/sdk:2.1 AS publish
+### Copy in the app
+WORKDIR /app
+COPY DDECFileBroker ./
+### Commands to build app as part of image
+RUN dotnet restore
+RUN dotnet build
+### Publish app
+RUN dotnet publish -c Release -o out
+
+
+# *** Stage 2 *** Publish / Run
+FROM mcr.microsoft.com/dotnet/core/runtime:2.1 AS runtime
+WORKDIR /app
+COPY --from=publish /app/out ./
+### Create data dir
+WORKDIR "/data"
+
+### Set Env. variables
+ENV storageconnectionstring='DefaultEndpointsProtocol=https;AccountName=fidatddecstore;AccountKey=G0WEQZQgyFY6s8yexwZaBQPP9xGNZ8xcJLatVHoJnX6eh/Hy/w6dupVgq1tB74YkD9McbZJeitN4x7g5cN7xlg==;EndpointSuffix=core.windows.net'
+ENV AZURE_QUEUE_NAME='ddec-file-raw-queue'
+ENV CLIENT_ID='38ecf826-79a0-498d-855f-1405ad5e2644'
+ENV CLIENT_KEY='ySPY4XCZQ~l~RQ-i--h9B3lhJF_l8KAi9~'
+ENV WRITE_MODE='reset'
+ENV ADLS_DIR_PATH='/xtr/raw/collection/2020-10-XX/'
+ENV ADLS_ACCNT_NAME='fidatddecadls.azuredatalakestore.net'
+ENV AZ_TENANT_ID='7b0efc1a-8aeb-45bb-b1cb-38569cab1fb3'
+
+### Set working dir for commandline {dev execution}
+WORKDIR /app
+CMD [ "cmd" ]
+### Start broker service
+ENTRYPOINT ["dotnet", "FIDAT.XTR.FileBroker.dll"]
