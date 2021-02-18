@@ -371,7 +371,11 @@ def main():
     # Get Application name
     app_name = set_env_param('APP_NAME',str(os.uname()[1]))
 
-    msg_cnt = 0
+    success_msg = ''
+    fault_msg = ''
+
+
+    # msg_cnt = 0
     try:
         # Connect to SFTP server
         print(' [*] Connecting to SFTP server')
@@ -395,13 +399,13 @@ def main():
                         ch.basic_ack(delivery_tag=method.delivery_tag)
 
                         # Register progress
-                        msg_cnt+=1
-                        rbt_interface.write_status(str(msg_cnt))
+                        # msg_cnt +=1
+                        rbt_interface.write_status(str(datetime.now().strftime("%d/%m/%Y %H:%M:%S")))
                     except Exception as err:
                         print(' [!] Error executing input stream {0}.'.format(app_name))
                         # Report failure to fault channel
                         fault_msg = app_name + ' | Timestamp:' + datetime.now().strftime("%d/%m/%Y %H:%M:%S")
-                        rbt_interface.write_fault(success_msg)
+                        rbt_interface.write_fault(fault_msg)
                 # Register callback function and start input stream
                 rbt_interface.set_input_function(input_callback)
                 rbt_interface.start_input_stream()
