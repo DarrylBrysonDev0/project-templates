@@ -15,40 +15,31 @@ Summary information of interface classes for container solutions.
 
 ## Class: sftp_CONN
 Class wrapper for pysftp library. Implementation of sftp server client interface logic for file access.
-
-- Connection management
-  - get_conn
-  - close_conn
-- Directory management
-  - get_dir_list
-  - path_exists
-  - create_directory
-- File management
-  - download_file
-  - upload_sftp
-  - delete_sftp
-  - append_sftp
-- State management
-  - from_env
-  - to_list
-  - set_env_param
+| Class      | Methods                     | Description                                       |
+|------------|-----------------------------|---------------------------------------------------|
+| sftp_CONN  | set_from_env                | Set parameters from environment variables         |
+|            | get_dir_list                | Get recursive list of files                       |
+|            | open_connection             | Get/Set sftp connection                           |
+|            | close_connection            | Closes sftp connection                            |
+|            | path_exists                 | Check if path exist on sftp server                |
+|            | create_directory            | Recursively create parent directories of a path   |
+|            | download_file               |                                                   |
+|            | upload_file                 |                                                   |
+|            | delete_file                 |                                                   |
 
 ## Class: queue_CONN
 Class wrapper for pika library. Implementation of RabbitMQ interface logic for intra-container/task messaging.
-- Connection manager
-  - create connections
-  - create channels
-  - create queues
-  - close connections
-- Queue communication
-  - create publisher
-  - create consumer
-- input connection
-  - input channel
-- output connection
-  - output channel
-  - namespace channel
-- State management
-  - from_env
-  - to_list
-  - set_env_param
+| Class      | Methods                     | Description                                       |
+|------------|-----------------------------|---------------------------------------------------|
+| queue_CONN | set_from_env                | Set parameters from environment variables         |
+|            | create_namespace_queues     | Initiate queues used to report application status |
+|            | create_named_channel_queues | Initiate all standardized queues                  |
+|            | start_input_stream          | Start consuming from Input queue                  |
+|            | stop_input_stream           | Stop consuming from Input queue                   |
+|            | write_to_output             | Publish a message to Output queue                 |
+|            | publish_message             | Generically publish a message to a provided queue |
+|            | start_consuming             | Generically start consuming from a provided queue |
+|            | stop_consuming              | Generically stop consuming from a provided queue  |
+|            | write_success               | Publish a message to Success queue                |
+|            | write_fault                 | Publish a message to Fault queue                  |
+|            | write_status                | Publish a message to Status queue                 |

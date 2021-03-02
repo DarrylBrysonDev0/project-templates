@@ -25,20 +25,20 @@
 
 namespace FIDAT.XTR.FileBroker
 {
-    using Microsoft.WindowsAzure.Storage;
-    using Microsoft.WindowsAzure.Storage.Queue;
+    //using Microsoft.WindowsAzure.Storage;
+    //using Microsoft.WindowsAzure.Storage.Queue;
     using System;
     using System.Threading.Tasks;
     using Microsoft.Rest;
-    using Microsoft.Rest.Azure.Authentication;
-    using Microsoft.Azure.DataLake.Store;
-    using Azure.Storage.Files.DataLake;
+    //using Microsoft.Rest.Azure.Authentication;
+    //using Microsoft.Azure.DataLake.Store;
+    //using Azure.Storage.Files.DataLake;
    // using System.Collections.Generic;
 
     class Program
     {
-        private static AdlsClient client;
-        private static DataLakeDirectoryClient dlClient;
+        //private static AdlsClient client;
+        //private static DataLakeDirectoryClient dlClient;
         private static string _flag_WriteMode;
         static void Main(string[] args)
         {
@@ -67,7 +67,7 @@ namespace FIDAT.XTR.FileBroker
             if (_env_WriteMode == null) { _env_WriteMode = "reset"; }
 
             // ADLS Gen 2 TestVar
-            string _env_storageConnectionString_g2 = "DefaultEndpointsProtocol=https;AccountName=ddecstoregen2;AccountKey=g8X1/01we8YN/sYGlHAFfIekx6JDYQB7hD5CWxdx5LttUxfwyC5bT2eL8AupI/HXPBTbnT78h6UQzH7E6hlzEQ==;EndpointSuffix=core.windows.net";
+            //string _env_storageConnectionString_g2 = "DefaultEndpointsProtocol=https;AccountName=ddecstoregen2;AccountKey=g8X1/01we8YN/sYGlHAFfIekx6JDYQB7hD5CWxdx5LttUxfwyC5bT2eL8AupI/HXPBTbnT78h6UQzH7E6hlzEQ==;EndpointSuffix=core.windows.net";
             //string _env_adlsRawPath_g2 = "/xtr/raw/2020-10-05/"; 
             ///////////////////////\\\\\\\\\\\\\\\\\\\\\\\\\\
             _flag_WriteMode = _env_WriteMode;

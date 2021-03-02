@@ -6,6 +6,7 @@ services:
     build:
       context: ./app-image
       dockerfile: ./Dockerfile.python-app-loop
+    command: ["python", "python-app-loop.py"]
     environment:
       # SFTP Parameters
       - SFTP_HOST=sftp-srv

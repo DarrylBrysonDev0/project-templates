@@ -1,0 +1,15 @@
+Backup
+
+In Linux:
+docker run --rm -v $PWD:/host:rw -v <VOLUME_NAME>:/db-backup:ro ubuntu:latest \
+   cp -r /db-backup /host/db_files
+
+
+Restore
+Attach database and log files to MS SQL Server
+
+Copy Files to container:
+    docker cp . <service>:/var/opt/mssql/data/
+    docker cp \attach-db.sh <service>:/var/opt/mssql/data/attach-db.sh
+    docker cp <Database>.mdf <service>:/var/opt/mssql/data/<Database>.mdf
+    docker cp <Database_log>.ldf <service>:/var/opt/mssql/data/<Database_log>.ldf
