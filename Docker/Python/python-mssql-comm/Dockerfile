@@ -1,12 +1,12 @@
 # For more information, please refer to https://aka.ms/vscode-docker-python
 FROM python:3.8-slim-buster
+# FROM python:3.8-buster
 
 # Keeps Python from generating .pyc files in the container
 ENV PYTHONDONTWRITEBYTECODE=1
 
 # Turns off buffering for easier container logging
 ENV PYTHONUNBUFFERED=1
-
 
 # Install  msodbc header
 RUN apt-get update && \
@@ -24,13 +24,13 @@ RUN apt-get update && \
     apt-get -y install git gcc mono-mcs python3-dev python3-pip libxml2-dev libxslt1-dev zlib1g-dev g++ unixodbc-dev libgssapi-krb5-2 && \
     rm -rf /var/lib/apt/lists/*
 
-# Install interface classes
-## Pull latest class source
+# Install interface class
+# Pull latest class source
 WORKDIR /ims-lib
 RUN git clone https://github.com/DarrylBrysonDev0/ms-interface-lib.git && \
     pip install ./ms-interface-lib
 
-# Install application requirements
+# Install pip requirements
 COPY requirements.txt .
 RUN python -m pip install -r requirements.txt
 
@@ -45,5 +45,5 @@ RUN useradd appuser && chown -R appuser /app
 USER appuser
 
 # During debugging, this entry point will be overridden. For more information, please refer to https://aka.ms/vscode-docker-python-debug
-CMD ["python", "python-app-loop.py"]
+CMD ["python", "db-interface-test.py"]
 

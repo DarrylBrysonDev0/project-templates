@@ -1,0 +1,21 @@
+version: '3.4'
+
+services:
+  idb-test:
+    image: idb-test
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    command: ["python", "db-interface-test.py"]
+    environment:
+      # DB Parameters
+      - SQL_SERVER_HOST=192.168.56.1
+      - DB_NAME=telemDataStore
+      - DB_USER=sa
+      - DB_PASSWORD=Testing1122
+    # restart: unless-stopped # un-comment to enable loop
+    networks:
+      - backend
+networks:
+  backend:
+    external: true
