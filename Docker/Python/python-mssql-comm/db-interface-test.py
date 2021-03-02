@@ -2,6 +2,7 @@ import os
 import sys
 import traceback
 import time
+import pandas as pd
 from microsrv_interface.comm_interface import db_CONN, set_env_param #,sftp_CONN, queue_CONN
 
 def main():

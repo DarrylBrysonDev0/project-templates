@@ -28,7 +28,8 @@ RUN apt-get update && \
 ## Pull latest class source
 WORKDIR /ims-lib
 RUN git clone https://github.com/DarrylBrysonDev0/ms-interface-lib.git && \
-    pip install ./ms-interface-lib
+    python -m pip install -r ./ms-interface-lib/requirements.txt && \
+    python -m pip install ./ms-interface-lib
 
 # Install application requirements
 COPY requirements.txt .

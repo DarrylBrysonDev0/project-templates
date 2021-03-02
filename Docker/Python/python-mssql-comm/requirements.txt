@@ -1,2 +1,3 @@
 # To ensure app dependencies are ported from your virtual environment/host machine into your container, run 'pip freeze > requirements.txt' in the terminal to overwrite this file
 kafka-python==2.0.2
+pandas==1.2.1
