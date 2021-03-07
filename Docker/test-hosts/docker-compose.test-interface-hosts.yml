@@ -23,27 +23,27 @@ services:
     networks:
       - microservice-network
 
-  datastore:
-    image: mssql-2019-latest
-    build:
-      context: ./mssql-datastore
-      dockerfile: ./Dockerfile
-    ports:
-      - "1433:1433"
-    networks:
-      - microservice-network
-    volumes:
-      - type: volume
-        source: mssql-datastore-vol 
-        target: /var/opt/sqlserver
-        read_only: false
-        volume:
-          nocopy: false
-    environment:
-      - ACCEPT_EULA=Y
-      - SA_PASSWORD=${MSSQL_SA_PASSWORD}
+  # datastore:
+  #   image: mssql-2019-latest
+  #   build:
+  #     context: ./mssql-datastore
+  #     dockerfile: ./Dockerfile
+  #   ports:
+  #     - "1433:1433"
+  #   networks:
+  #     - microservice-network
+  #   volumes:
+  #     - type: volume
+  #       source: mssql-datastore-vol 
+  #       target: /var/opt/sqlserver
+  #       read_only: false
+  #       volume:
+  #         nocopy: false
+  #   environment:
+  #     - ACCEPT_EULA=Y
+  #     - SA_PASSWORD=${MSSQL_SA_PASSWORD}
 networks:
   microservice-network:
     external: true
-volumes:
-  mssql-datastore-vol:
+# volumes:
+#   mssql-datastore-vol:
