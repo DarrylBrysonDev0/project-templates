@@ -15,7 +15,7 @@ COPY db-backup/telemDataStore.mdf /var/opt/sqlserver
 COPY db-backup/telemDataStore_log.ldf /var/opt/sqlserver
 
 # Restrict permissions
-USER 1001
+USER 0
  
 # use the ENTRYPOINT command to execute the script and start SQL Server
 ENTRYPOINT /var/opt/sqlserver/attach-db.sh & /opt/mssql/bin/sqlservr
