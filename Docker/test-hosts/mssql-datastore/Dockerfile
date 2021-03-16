@@ -14,6 +14,8 @@ COPY db-backup/attach-db.sh /var/opt/sqlserver
 COPY db-backup/telemDataStore.mdf /var/opt/sqlserver
 COPY db-backup/telemDataStore_log.ldf /var/opt/sqlserver
 
+RUN /var/opt/sqlserver/attach-db.sh 
+
 # Restrict permissions
 USER 0
  
