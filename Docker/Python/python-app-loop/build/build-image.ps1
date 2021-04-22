@@ -1,6 +1,6 @@
 function Set-PsEnv {
     [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'Low')]
-    param($localEnvFile = "$PSScriptRoot\.env")
+    param($localEnvFile = (Split-Path -Path $PSScriptRoot -Parent) + "\.env")
 
     #return if no env file
     if (!( Test-Path $localEnvFile)) {
